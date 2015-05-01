@@ -6,11 +6,11 @@ var app = express()
 
 app.use(bodyParser.json());
 
-var api_key = "XXX",
-    api_secret = "XXX",
-    base_ccy = 'USD',
-    base_price = '0.05', // you'll probably set this programatically in production
-    callback_url = "https://example.com";
+var api_key = process.env.API_KEY,
+    api_secret = process.env.API_SECRET,
+    demo_host = process.env.DEMO_HOST;
+
+
 
 app.get('/', function (req, res) {
 
@@ -19,7 +19,13 @@ app.get('/', function (req, res) {
 })
 
 app.get('/create-invoice', function (req, res) {
-  yellow.createInvoice(api_key, api_secret, base_ccy, base_price, callback_url, function(error, response, body){
+  var payload = {
+      base_ccy   : "USD",
+      base_price : "0.05",
+      callback   : demo_host + "/callback-url"
+  };
+
+  yellow.createInvoice(api_key, api_secret, payload, function(error, response, body){
     if (!error && response.statusCode == 200) {
       console.log(body);
       res.send('<iframe src="' + body.url + '" style="width:393px; height:255px; overflow:hidden; border:none; margin:auto; display:block;"  scrolling="no" allowtransparency="true" frameborder="0"></iframe>')
@@ -32,8 +38,13 @@ app.get('/create-invoice', function (req, res) {
 })
 
 app.post('/callback-url/', function (req, res) {
+  var request_signature = req.headers['api-sign'];
+  var request_nonce = req.headers['api-nonce'];
+  var request_body = JSON.stringify(req.body);
+  var host_url = demo_host + "/callback-url"
 
-  var verified = yellow.verifyIPN(api_secret, callback_url, req)
+  var verified = yellow.verifyIPN(api_secret, host_url, request_nonce, request_signature, request_body)
+
   if (!verified){
     /*
     If signatures are not the same, that means it could be a malicious request:
@@ -71,6 +82,10 @@ app.post('/callback-url/', function (req, res) {
   return
 
 });
+
+
+
+
 
 var server = app.listen(3000, function(){
 
